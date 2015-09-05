@@ -1,0 +1,165 @@
+<apex:page controller="PhotoViewerCtrl" sidebar="false" docType="html-5.0">
+    <apex:includeScript value="{!URLFOR($Resource.jQuery, 'jquery-1.11.3.min.js')}"/>
+    <!--
+    <div id="loadingCover" style="text-align: center; font-size: 1.3em; margin-top: 1em;">
+        <img src="{!URLFOR($Resource.StyleResource, 'spinner.gif')}"/>&nbsp;数据加载中，请稍候...
+    </div>
+    -->
+    <div id="loadingCover" style="text-align: center; font-size: 1.3em; margin-top: 1em;">
+        数据加载中，请稍候...
+    </div>
+    <apex:form id="basicInfoForm" style="display:none;">
+    <apex:PageBlock >
+        <table>
+            <tr><td valign="top">
+       <apex:outputPanel id="filterPanel">
+       <apex:outputLabel >客户名称</apex:outputLabel><br/>
+           <apex:selectList size="1" id="accountSelector" onchange="refreshStoreSelector();">
+               <apex:selectOptions value="{!accs}"/>
+           </apex:selectList><p/>
+
+           <apex:outputLabel >门店名称</apex:outputLabel><br/>
+           <apex:selectList id="storeSelector" size="1">
+               <apex:selectOptions value="{!stores}"/>
+           </apex:selectList><p/>
+
+           <apex:outputLabel >类型</apex:outputLabel><br/>
+           <apex:selectList id="typeSelector" size="1">
+               <apex:selectOptions value="{!types}"/>
+           </apex:selectList><p/>
+
+           <apex:outputLabel >日期</apex:outputLabel><br/>
+           <apex:inputField id="dtInput" value="{!tempRecord.Date__c}"/><p/>
+
+           <apex:outputLabel >照片名称</apex:outputLabel><br/>
+           <apex:inputText id="photoNameInput"/><p/>
+
+           <input type="button" id="searchBtn" class="btn" style="disabled: disabled" value="搜索" onclick="refreshPhoto();"/>
+       </apex:outputPanel>
+       </td>
+       <td>
+       <apex:outputPanel >
+           <table id="photoPanel"></table>
+       </apex:outputPanel>
+       </td>
+   </tr>
+   </table>
+    </apex:PageBlock>
+    </apex:form>
+
+    <style>
+      .photo{
+          width: 30%;
+          height: 30%;
+          margin: 5px 5px 5px 5px;
+      }
+      .noPhotoMessage{
+          margin: 50px 0px 0px 50px;
+      }
+    </style>
+
+    <script type="text/javascript">
+
+        function setFocus(){
+          var elementFocus = document.activeElement;
+        }
+
+        $(function(){
+            //debugger;
+            //页面加载完成后，显示编辑表格
+             $("#loadingCover").css("display","none");
+             $("[id$='basicInfoForm']").css("display","block");
+
+            init();
+        });
+
+        function init(){
+            refreshStoreSelector();
+
+            var storeId = $("[id$='storeSelector']").val();
+            var type = $("[id$='typeSelector']").val();
+            var dt = $("[id$='dtInput']").val();
+            var photoName = $("[id$='photoNameInput']").val();
+            refreshPhoto(storeId, type, dt, photoName);
+        }
+
+        function refreshStoreSelector(){
+            var accId = $("[id$='accountSelector']").val();
+
+            $("[id$='storeSelector']").empty();
+            $("[id$='storeSelector']").append("<option value=''>正在获取门店</option>");
+            PhotoViewerCtrl.getRetailStores(
+                accId,
+                function(result, event){
+                    if (event.status){
+                        var storeOption;
+                        var storeId;
+                        var storeName;
+
+                        $("[id$='storeSelector']").empty();
+                        for(var i=0;i<result.length;i++){
+                            storeId = result[i].split('##')[0];
+                            storeName = result[i].split('##')[1];
+                            $("[id$='storeSelector']").append("<option value='"+storeId+"'>"+storeName+"</option>");
+                        }
+                    }
+                },
+                {escape: true}
+            );
+        }
+
+        function refreshPhoto(){
+            searching();
+
+            var storeId = $("[id$='storeSelector']").val();
+            var type = $("[id$='typeSelector']").val();
+            var dt = $("[id$='dtInput']").val();
+            var photoName = $("[id$='photoNameInput']").val();
+
+            PhotoViewerCtrl.getPhotosIds(
+                storeId, type, dt, photoName,
+                function(result, event){
+                    var photoPanel = $("[id$='photoPanel']");
+                    photoPanel.empty();
+                    if (event.status){
+                        if(result.length==0) photoPanel.append($("<span class='noPhotoMessage'>没有照片显示</span>"));
+                        for(var i=0;i<result.length;i++){
+                            var imgCell = generateImg(result[i]);
+                            photoPanel.append(imgCell);
+                        }
+                    }
+                },
+                {escape: true}
+            );
+
+            searchingEnd();
+        }
+
+        function generateImg(imgId){
+            var imgCell = $("<div style='float:left;'><a target='_blank' href='https://c.cs6.content.force.com/servlet/servlet.FileDownload?file="+imgId+"'><img src='https://c.cs6.content.force.com/servlet/servlet.FileDownload?file="+imgId+"' class='photo'/></a></div>");
+
+            var img = $("<a target='_blank' href='https://c.cs6.content.force.com/servlet/servlet.FileDownload?file="+imgId+"'><img src='https://c.cs6.content.force.com/servlet/servlet.FileDownload?file="+imgId+"' class='photo'/><a style='margin: 20px 0px 0px 0px'>xiazai</a></a>");
+
+            //var downloadLink = $("<a href='https://c.cs6.content.force.com/servlet/servlet.FileDownload?file=00PN0000000hxKz' download='download'>下载</a>");
+            //img.append(downloadLink);
+
+            //imgCell.append(img);
+
+            return imgCell;
+        }
+
+        function searching(){
+            var searchBtn = $("[id$='searchBtn']");
+            searchBtn.attr("disabled", true);
+            searchBtn.attr("value", '搜索中...');
+            searchBtn.addClass("btnDisabled");
+        }
+
+        function searchingEnd(){
+            var searchBtn = $("[id$='searchBtn']");
+            searchBtn.attr("disabled", false);
+            searchBtn.attr("value", '搜索');
+            searchBtn.removeClass("btnDisabled");
+        }
+    </script>
+</apex:page>
